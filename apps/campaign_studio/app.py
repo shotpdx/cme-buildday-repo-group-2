@@ -17,7 +17,7 @@ import json
 import uuid
 from typing import Any, AsyncIterator, Callable
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -140,6 +140,14 @@ def build_app(
         }
         store.update_asset(cid, format_name, asset)
         return asset
+
+    @app.post("/campaigns/{cid}/approve", status_code=204)
+    async def approve_campaign(cid: str) -> Response:
+        """Mark the campaign as approved. Idempotent — re-approving is a no-op."""
+        if store.get(cid) is None:
+            raise HTTPException(status_code=404, detail="unknown campaign")
+        store.update_status(cid, "approved")
+        return Response(status_code=204)
 
     return app
 
