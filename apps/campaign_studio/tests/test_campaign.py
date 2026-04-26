@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import build_app
+from persistence import FakeStore
 
 
 class FakeOrchestrator:
@@ -25,7 +26,8 @@ class FakeOrchestrator:
 
 def test_create_campaign_returns_id():
     app = build_app(orchestrator=FakeOrchestrator(),
-                    build_aggregate=lambda f: {"primary_segment": "Sports Enthusiast"})
+                    build_aggregate=lambda f: {"primary_segment": "Sports Enthusiast"},
+                    store=FakeStore())
     client = TestClient(app)
     r = client.post("/campaigns", json={"segment_filter": {"persona": "Sports Fan"}})
     assert r.status_code == 200
@@ -34,7 +36,8 @@ def test_create_campaign_returns_id():
 
 def test_sse_stream_emits_one_tile_per_format_and_done():
     app = build_app(orchestrator=FakeOrchestrator(),
-                    build_aggregate=lambda f: {"primary_segment": "Sports Enthusiast"})
+                    build_aggregate=lambda f: {"primary_segment": "Sports Enthusiast"},
+                    store=FakeStore())
     client = TestClient(app)
     r = client.post("/campaigns", json={"segment_filter": {}})
     cid = r.json()["campaign_id"]

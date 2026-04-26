@@ -9,6 +9,7 @@ from lakefoundry.creative.azure_openai_image import AzureOpenAIImage
 from lakefoundry.creative.orchestrator import CreativeOrchestrator
 
 from app import build_app
+from persistence import CampaignStore
 
 # Minimal real brief synthesizer for buy-side — re-use the batch template for now.
 from sys import path as _sp
@@ -55,4 +56,22 @@ orchestrator = CreativeOrchestrator(
     image_client=image_client,
 )
 
-app = build_app(orchestrator=orchestrator, build_aggregate=build_aggregate)
+
+def _conn_factory():
+    import psycopg
+    return psycopg.connect(
+        host=os.environ["PGHOST"],
+        dbname=os.environ["PGDATABASE"],
+        user=os.environ["PGUSER"],
+        password=os.environ["PGPASSWORD"],
+        sslmode="require",
+    )
+
+
+store = CampaignStore(_conn_factory)
+
+app = build_app(
+    orchestrator=orchestrator,
+    build_aggregate=build_aggregate,
+    store=store,
+)

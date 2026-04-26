@@ -2,11 +2,13 @@
 
 ``build_app`` is a factory that returns a configured FastAPI app. It takes
 an orchestrator with a sync ``render(aggregate, *, size, quality, personalize)``
-method and a sync ``build_aggregate(filter_)`` callable that reduces a
-``segment_filter`` to a single "virtual segment" aggregate row.
+method, a sync ``build_aggregate(filter_)`` callable that reduces a
+``segment_filter`` to a single "virtual segment" aggregate row, and a
+``store`` implementing the ``persistence.Store`` protocol for Lakebase-
+backed durability.
 
-Module-level ``_CAMPAIGNS`` and ``_QUEUES`` registries hold per-campaign
-state in-memory for the demo. Task 13 swaps these for Lakebase persistence.
+Module-level ``_QUEUES`` holds transient SSE queues; these don't need to
+survive restarts because the final state lives in ``generated_campaigns``.
 """
 from __future__ import annotations
 
@@ -19,6 +21,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from persistence import Store
+
 FORMATS: list[dict[str, str]] = [
     {"name": "social_square", "size": "1024x1024"},
     {"name": "vertical_story", "size": "1024x1792"},
@@ -26,9 +30,8 @@ FORMATS: list[dict[str, str]] = [
     {"name": "email_header", "size": "1792x1024"},
 ]
 
-# Module-level registries — in-memory for the demo. Task 13 replaces
-# ``_CAMPAIGNS`` with Lakebase ``generated_campaigns`` rows.
-_CAMPAIGNS: dict[str, dict[str, Any]] = {}
+# Transient SSE fan-out queues — rebuilt on each app boot. Durable state
+# lives in the Lakebase ``generated_campaigns`` table via ``Store``.
 _QUEUES: dict[str, asyncio.Queue[dict[str, Any]]] = {}
 
 
@@ -44,17 +47,14 @@ def build_app(
     *,
     orchestrator: Any,
     build_aggregate: Callable[[dict[str, Any]], dict[str, Any]],
+    store: Store,
 ) -> FastAPI:
     app = FastAPI(title="Campaign Studio")
 
     @app.post("/campaigns", response_model=CreateCampaignResponse)
     async def create_campaign(req: CreateCampaignRequest) -> CreateCampaignResponse:
         cid = str(uuid.uuid4())
-        _CAMPAIGNS[cid] = {
-            "filter": req.segment_filter,
-            "assets": {},
-            "status": "pending",
-        }
+        store.create(cid, req.segment_filter)
         # Queue is created lazily in the SSE handler so the producer task
         # and the consumer generator share the same event loop. (Under
         # Starlette's TestClient each request owns its own loop, so a
@@ -64,7 +64,8 @@ def build_app(
 
     @app.get("/campaigns/{cid}/events")
     async def stream_events(cid: str, request: Request) -> StreamingResponse:
-        if cid not in _CAMPAIGNS:
+        campaign = store.get(cid)
+        if campaign is None:
             return StreamingResponse(
                 iter(["event: error\ndata: unknown campaign\n\n"]),
                 media_type="text/event-stream",
@@ -75,14 +76,15 @@ def build_app(
         async def gen() -> AsyncIterator[str]:
             # Start the fan-out inside this request's event loop so it
             # produces events for this generator to drain.
-            if _CAMPAIGNS[cid]["status"] == "pending":
-                _CAMPAIGNS[cid]["status"] = "running"
+            current = store.get(cid)
+            if current is not None and current["status"] == "running" and not current["assets"]:
                 asyncio.create_task(
                     _run_campaign(
                         cid,
-                        _CAMPAIGNS[cid]["filter"],
+                        current["filter"],
                         orchestrator,
                         build_aggregate,
+                        store,
                     )
                 )
             while True:
@@ -107,6 +109,7 @@ async def _run_campaign(
     filter_: dict[str, Any],
     orch: Any,
     build_aggregate: Callable[[dict[str, Any]], dict[str, Any]],
+    store: Store,
 ) -> None:
     aggregate = await asyncio.to_thread(build_aggregate, filter_)
     sem = asyncio.Semaphore(4)
@@ -120,11 +123,12 @@ async def _run_campaign(
                 quality="low",
                 personalize=False,
             )
-            _CAMPAIGNS[cid]["assets"][fmt["name"]] = {
+            asset = {
                 "image_path": str(result.image_path),
                 "copy": result.copy,
                 "latency_s": result.latency_s,
             }
+            store.update_asset(cid, fmt["name"], asset)
             await _QUEUES[cid].put(
                 {
                     "type": "tile",
@@ -137,5 +141,5 @@ async def _run_campaign(
             )
 
     await asyncio.gather(*[one(f) for f in FORMATS])
-    _CAMPAIGNS[cid]["status"] = "complete"
+    store.update_status(cid, "complete")
     await _QUEUES[cid].put({"type": "done", "data": {"campaign_id": cid}})
