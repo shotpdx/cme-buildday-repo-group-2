@@ -6,29 +6,36 @@ Operational prerequisites and environment checks for the CME Build Day creative-
 
 Target path: `dbfs:/Volumes/cme_outcomes_uswest/media_demo/creatives/`
 
-Profile used for check: `uswest` (workspace `https://dbc-fa80cb73-9755.cloud.databricks.com`).
+Profile used for check: `cme-outcomes` (workspace `https://dbc-fa80cb73-9755.cloud.databricks.com`).
 
 Current status as of Task 1 scaffolding:
 
-- `databricks fs ls dbfs:/Volumes/cme_outcomes_uswest/media_demo/creatives/ --profile uswest` returns
+- `databricks fs ls dbfs:/Volumes/cme_outcomes_uswest/media_demo/creatives/ --profile cme-outcomes` returns
   `Error: no such directory: /Volumes/cme_outcomes_uswest/media_demo/creatives`.
-- `databricks catalogs get cme_outcomes_uswest --profile uswest` returns
+- `databricks catalogs get cme_outcomes_uswest --profile cme-outcomes` returns
   `Error: Catalog 'cme_outcomes_uswest' is not accessible in current workspace`.
-- The catalog does not appear in `databricks catalogs list --profile uswest`. The related online catalog
+- The catalog does not appear in `databricks catalogs list --profile cme-outcomes`. The related online catalog
   `lakefoundry_db_cme-outcomes` is present but is not the Unity Catalog catalog needed here.
 
 Action required before Task 2 runs end-to-end:
 
-1. Create (or request creation of) the catalog `cme_outcomes_uswest` in the `uswest` workspace, or confirm the correct catalog name if it differs.
+1. Create (or request creation of) the catalog `cme_outcomes_uswest` in the `cme-outcomes` workspace, or confirm the correct catalog name if it differs.
 2. Create schema `cme_outcomes_uswest.media_demo`.
-3. Create volume: `databricks volumes create cme_outcomes_uswest media_demo creatives MANAGED --profile uswest`.
-4. Re-run the `databricks fs ls` check above and confirm the volume is listable (empty result is expected).
+3. Create volume: `databricks volumes create cme_outcomes_uswest media_demo creatives MANAGED --profile cme-outcomes`.
+4. Grant SP access to the volume: run `GRANT READ VOLUME, WRITE VOLUME ON VOLUME cme_outcomes_uswest.media_demo.creatives TO \`<sp-id>\`;` on the `cme-outcomes` profile (substitute the service principal application ID used by the SDP pipelines / Databricks App).
+5. Re-run the `databricks fs ls` check above and confirm the volume is listable (empty result is expected): `databricks fs ls dbfs:/Volumes/cme_outcomes_uswest/media_demo/creatives/ --profile cme-outcomes`.
 
-This task (Task 1) intentionally did not auto-create the catalog because the plan's remediation only covered creating the volume under an existing catalog. Flag this during standup so the owner of the `uswest` workspace can provision the catalog/schema.
+This task (Task 1) intentionally did not auto-create the catalog because the plan's remediation only covered creating the volume under an existing catalog. Flag this during standup so the owner of the `cme-outcomes` workspace can provision the catalog/schema.
 
 ## Azure OpenAI quota verification checklist
 
 Model: `gpt-image-2` (Azure OpenAI). Verify the following before Build Day.
+
+### Endpoint and auth
+
+- **Endpoint:** `https://lakefoundry-azure-openai.openai.azure.com/`
+- **API version:** pinned to `2025-04-01-preview` (required for the `gpt-image-2` deployment — earlier versions return 404 against this deployment name).
+- **Secret storage:** API key lives in Databricks secret scope `lakefoundry` under key `AZURE_OPENAI_KEY`. Read from a notebook / pipeline with `dbutils.secrets.get("lakefoundry", "AZURE_OPENAI_KEY")`, or from the CLI with `databricks secrets get-secret lakefoundry AZURE_OPENAI_KEY`.
 
 Headroom target: 6 teams x approximately 50 images = approximately 300 images total, with comfortable bursts from parallel participants.
 
@@ -63,4 +70,5 @@ If quota is tight (below ~60 RPM / below expected TPM for a single image prompt 
 
 ## Change log
 
-- 2026-04-26: File created during Task 1 (scaffold). UC volume `cme_outcomes_uswest/media_demo/creatives` does not yet exist; catalog itself not accessible in `uswest` workspace. Azure quota not yet verified.
+- 2026-04-26: File created during Task 1 (scaffold). UC volume `cme_outcomes_uswest/media_demo/creatives` does not yet exist; catalog itself not accessible via the `cme-outcomes` profile. Azure quota not yet verified.
+- 2026-04-26: Task 1 follow-up — added Azure OpenAI endpoint, API version pin (`2025-04-01-preview`), `lakefoundry`/`AZURE_OPENAI_KEY` secret-scope reference, and UC volume SP grant command. Corrected profile name from `uswest` to `cme-outcomes` throughout.
