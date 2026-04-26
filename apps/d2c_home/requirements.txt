@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+jinja2
+psycopg[binary]
+openai
+-e ../../../lakefoundry/.worktrees/cme-buildday-creative-gen
