@@ -17,7 +17,7 @@ import json
 import uuid
 from typing import Any, AsyncIterator, Callable
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -33,6 +33,13 @@ FORMATS: list[dict[str, str]] = [
 # Transient SSE fan-out queues — rebuilt on each app boot. Durable state
 # lives in the Lakebase ``generated_campaigns`` table via ``Store``.
 _QUEUES: dict[str, asyncio.Queue[dict[str, Any]]] = {}
+
+
+def _format_size(name: str) -> str:
+    for fmt in FORMATS:
+        if fmt["name"] == name:
+            return fmt["size"]
+    raise KeyError(name)
 
 
 class CreateCampaignRequest(BaseModel):
@@ -100,6 +107,39 @@ def build_app(
                     return
 
         return StreamingResponse(gen(), media_type="text/event-stream")
+
+    @app.post("/campaigns/{cid}/regenerate/{format_name}")
+    async def regenerate_format(cid: str, format_name: str) -> dict[str, Any]:
+        """Re-render a single format at bumped quality and return the new asset.
+
+        The initial fan-out renders at ``quality="low"`` for speed; regenerate
+        bumps to ``"medium"`` on the assumption the user wants a better take.
+        We skip SSE for this path — a plain JSON response keeps the demo
+        wiring simple per the plan's "minor UX caveat" note.
+        """
+        campaign = store.get(cid)
+        if campaign is None:
+            raise HTTPException(status_code=404, detail="unknown campaign")
+        try:
+            size = _format_size(format_name)
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"unknown format: {format_name}")
+
+        aggregate = await asyncio.to_thread(build_aggregate, campaign["filter"])
+        result = await asyncio.to_thread(
+            orchestrator.render,
+            aggregate,
+            size=size,
+            quality="medium",
+            personalize=False,
+        )
+        asset = {
+            "image_path": str(result.image_path),
+            "copy": result.copy,
+            "latency_s": result.latency_s,
+        }
+        store.update_asset(cid, format_name, asset)
+        return asset
 
     return app
 
