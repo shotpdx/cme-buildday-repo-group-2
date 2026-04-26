@@ -13,8 +13,11 @@ survive restarts because the final state lives in ``generated_campaigns``.
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import uuid
+import zipfile
+from pathlib import Path
 from typing import Any, AsyncIterator, Callable
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -148,6 +151,47 @@ def build_app(
             raise HTTPException(status_code=404, detail="unknown campaign")
         store.update_status(cid, "approved")
         return Response(status_code=204)
+
+    @app.get("/campaigns/{cid}/export")
+    async def export_campaign(cid: str) -> StreamingResponse:
+        """Stream a zip of all 4 PNG assets plus a ``manifest.json`` describing them.
+
+        Missing files on disk are silently skipped in the zip body but still
+        listed in the manifest — keeps the demo resilient when assets live
+        on a UC Volume that wasn't mounted for a given run.
+        """
+        campaign = store.get(cid)
+        if campaign is None:
+            raise HTTPException(status_code=404, detail="unknown campaign")
+
+        buf = io.BytesIO()
+        manifest: dict[str, Any] = {
+            "campaign_id": cid,
+            "filter": campaign.get("filter", {}),
+            "status": campaign.get("status"),
+            "formats": {},
+        }
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fmt_name, asset in (campaign.get("assets") or {}).items():
+                image_path = asset.get("image_path")
+                arcname = f"{fmt_name}.png"
+                if image_path and Path(image_path).exists():
+                    zf.write(image_path, arcname=arcname)
+                manifest["formats"][fmt_name] = {
+                    "copy": asset.get("copy"),
+                    "image_path": image_path,
+                    "arcname": arcname,
+                    "latency_s": asset.get("latency_s"),
+                }
+            zf.writestr("manifest.json", json.dumps(manifest, indent=2, default=str))
+        buf.seek(0)
+
+        headers = {"Content-Disposition": f'attachment; filename="campaign-{cid}.zip"'}
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="application/zip",
+            headers=headers,
+        )
 
     return app
 
