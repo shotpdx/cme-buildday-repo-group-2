@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS generated_campaigns (
+CREATE SCHEMA IF NOT EXISTS media_demo;
+
+CREATE TABLE IF NOT EXISTS media_demo.generated_campaigns (
     campaign_id TEXT PRIMARY KEY,
     segment_filter_json JSONB NOT NULL,
     assets_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -9,7 +11,7 @@ CREATE TABLE IF NOT EXISTS generated_campaigns (
 );
 
 CREATE INDEX IF NOT EXISTS idx_generated_campaigns_status
-    ON generated_campaigns (status, created_ts DESC);
+    ON media_demo.generated_campaigns (status, created_ts DESC);
 
 CREATE INDEX IF NOT EXISTS idx_generated_campaigns_created_by
-    ON generated_campaigns (created_by, created_ts DESC);
+    ON media_demo.generated_campaigns (created_by, created_ts DESC);
