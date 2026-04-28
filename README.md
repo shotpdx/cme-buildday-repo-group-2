@@ -1,12 +1,27 @@
-# CME Build Day Repo
+# CME Build Day
 
-Assets, reference apps, pipelines, notebooks, and participant docs for the CME Build Day creative-generation workstream. This repo is the artifact surface participants work against during Build Day; LakeFoundry (the execution engine) lives in a separate repo.
+Participant-facing contract for the CME Build Day creative-generation workstream. The goal on Build Day is for every team to ship a working, personalized creative experience on top of the `cme_outcomes_uswest.media_demo` Customer 360.
 
-See `build-day-data-dictionary.md` for the shared data contract.
+This repo is intentionally **docs only** — the shared data contract and the two tracks. No reference code, apps, or pipelines live here; teams bring their own implementations (LakeFoundry or hand-built).
 
-## Directory layout
+## What we're building
 
-- `apps/` — Reference applications that participants study and extend. Home for the D2C home-screen reference app (Task 10) and the Campaign Studio front-end/back-end (Tasks 12-14). Each app gets its own subdirectory.
-- `pipelines/` — Spark Declarative Pipelines definitions. Includes `pipelines/segment_hero_pregen/` for the batch segment-hero pre-generation pipeline (Task 9). One subdirectory per pipeline.
-- `notebooks/validation/` — Validation and smoke-test notebooks used to confirm workspace capabilities, quotas, and contract adherence before and during Build Day. Task 2 lands the capability smoke test here.
-- `docs/participant/` — Participant-facing documentation: operations notes, runbooks, and Build-Day-ready walkthroughs. Start with `00-operations-notes.md` for environment prerequisites.
+Two parallel tracks, both grounded in the same Customer 360:
+
+**Sell-side — D2C home-screen hero.** A signed-in customer hits the streaming home page and the hero (image, tagline, CTA, subtitle) is personalized from their `(primary_segment, value_segment, top_genre_1)`. P95 under 500 ms, never 5xx, HyperFrames animation, graceful persona fallback on any upstream hiccup.
+
+**Buy-side — Campaign Studio.** A marketing manager picks a target segment and, in under 30 seconds, sees a cross-format creative package (social square, vertical story, display banner, email header) stream in tile by tile via SSE. Per-tile regenerate + quality toggle, campaign-level approve, ZIP export, state persisted in Lakebase.
+
+## The data contract
+
+Everything participants can rely on — gold tables, silver support tables, enum vocabularies, grain, and the `_sync` Lakebase mirrors — is in [`build-day-data-dictionary.md`](build-day-data-dictionary.md). If it isn't documented there, treat it as undefined.
+
+Key joins: all gold tables share `canonical_id`. The campaign funnel (`gold_media_campaign_engagement`) additionally keys on `campaign_id` and pitches a specific `content_id`.
+
+## Environment
+
+- **Catalog / schema:** `cme_outcomes_uswest.media_demo`
+- **Lakebase mirrors:** same table names with `_sync` suffix
+- **Volumes:** `/Volumes/cme_outcomes_uswest/media_demo/creatives/` for generated imagery
+
+Anything not listed above (secret scopes, endpoint names, SP grants) is distributed per team on the morning of Build Day.
