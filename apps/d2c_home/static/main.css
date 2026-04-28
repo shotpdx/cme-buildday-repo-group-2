@@ -1,0 +1,346 @@
+/* D2C home screen — streaming-service aesthetic.
+   Ken Burns on the hero image, copy layered with a scrim for contrast. */
+
+:root {
+  --bg: #07090d;
+  --fg: #f4f6fb;
+  --fg-dim: #aeb6c6;
+  --accent: #ff3656;
+  --accent-soft: #ff365620;
+  --glass: rgba(12, 16, 24, 0.55);
+  --radius: 10px;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Playfair Display", "Inter", Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ---------- Demo bar ---------- */
+
+.demo-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.demo-bar > * {
+  pointer-events: auto;
+}
+
+.demo-bar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.demo-bar__logo {
+  color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.demo-bar__title {
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-size: 14px;
+}
+
+.demo-bar__tag {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.demo-bar__picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.demo-bar__picker-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.demo-bar__picker select {
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.demo-bar__picker select option {
+  background: #111;
+  color: var(--fg);
+}
+
+/* ---------- Hero stage ---------- */
+
+.hero {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.hero__stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.hero__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: 55% 45%;
+  transform: scale(1.04);
+  will-change: transform;
+}
+
+/* Ken Burns: slow zoom + pan. ~18s cycle, starts when `is-animating` is toggled. */
+.hero__image.is-animating {
+  animation: kenBurns 18s ease-in-out forwards;
+}
+
+@keyframes kenBurns {
+  0% {
+    transform: scale(1.04) translate3d(0, 0, 0);
+    transform-origin: 55% 45%;
+  }
+  100% {
+    transform: scale(1.18) translate3d(-3%, -2%, 0);
+    transform-origin: 42% 40%;
+  }
+}
+
+/* Vignette corners + diagonal scrim so copy stays legible over any image. */
+.hero__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 35%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.55) 35%,
+    rgba(0, 0, 0, 0) 65%
+  );
+  pointer-events: none;
+}
+
+/* ---------- Hero copy ---------- */
+
+.hero__content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: 0 clamp(28px, 6vw, 96px) clamp(60px, 10vh, 120px);
+  max-width: 780px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.hero__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.hero__source {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.hero__tagline {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(44px, 7vw, 96px);
+  line-height: 1.02;
+  margin: 0;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
+}
+
+.hero__subtitle {
+  font-size: clamp(16px, 1.4vw, 22px);
+  line-height: 1.5;
+  color: var(--fg);
+  opacity: 0.92;
+  margin: 0;
+  max-width: 620px;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.65);
+}
+
+.hero__cta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.hero__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 26px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  color: #07090d;
+  background: var(--fg);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.hero__cta:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.hero__cta-icon {
+  font-size: 14px;
+  transform: translateY(0.5px);
+}
+
+.hero__cta--ghost {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.hero__cta--ghost:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.hero__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  letter-spacing: 0.06em;
+}
+
+.hero__chip {
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--fg);
+  padding: 4px 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.hero__dotsep {
+  opacity: 0.4;
+}
+
+.hero__rating,
+.hero__year {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Footnote (dev status readout) ---------- */
+
+.hero__footnote {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.hero__footnote code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--fg-dim);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Responsive safety ---------- */
+
+@media (max-width: 640px) {
+  .demo-bar__tag {
+    display: none;
+  }
+  .hero__content {
+    padding-bottom: 40px;
+  }
+}
