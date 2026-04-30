@@ -2,21 +2,23 @@
 
 Participant-facing contract for the CME Build Day creative-generation workstream. The goal on Build Day is for every team to ship a working, personalized creative experience on top of the `cme_outcomes_uswest.media_demo` Customer 360.
 
-This repo is intentionally **docs only** — the shared data contract and the two tracks. No reference code, apps, or pipelines live here; teams bring their own implementations (LakeFoundry or hand-built).
+This repo contains the shared data contract, track briefs, and NBA gold table DDL/seed scripts (`sql/nba/`). No reference apps or pipelines live here; teams bring their own implementations (LakeFoundry or hand-built).
 
 ## What we're building
 
-Two parallel tracks, both grounded in the same Customer 360:
+Three parallel tracks, all grounded in the same Customer 360:
 
 **Sell-side — D2C home-screen hero.** A signed-in customer hits the streaming home page and the hero (image, tagline, CTA, subtitle) is personalized from their `(primary_segment, value_segment, top_genre_1)`. P95 under 500 ms, never 5xx, HyperFrames animation, graceful persona fallback on any upstream hiccup.
 
 **Buy-side — Campaign Studio.** A marketing manager picks a target segment and, in under 30 seconds, sees a cross-format creative package (social square, vertical story, display banner, email header) stream in tile by tile via SSE. Per-tile regenerate + quality toggle, campaign-level approve, ZIP export, state persisted in Lakebase.
 
+**Next Best Action (NBA) — Intelligent Decisioning.** The NBA engine is the intelligence and orchestration layer on top of the Customer 360. It consumes gold tables (churn predictions, LTV, content affinity, audience segments), applies rules-based decisioning logic, and outputs a prioritized action per customer routed to the right channel at the right time. Three NBA gold tables provide the foundation: an **Action Library** (~50 actions across 8 types — content, upsell, retention, re-engagement, win-back, loyalty, service, do-nothing), **Recommendations** (~10K scored and ranked action recommendations with explainability), and **Orchestration State** (~10K per-customer journey positions, frequency caps, channel fatigue, and delivery history). The engine operates as a maturity progression — rules-based triggers first, propensity models second, real-time signals third.
+
 ## The data contract
 
 Everything participants can rely on — gold tables, silver support tables, enum vocabularies, grain, and the `_sync` Lakebase mirrors — is in [`build-day-data-dictionary.md`](build-day-data-dictionary.md). If it isn't documented there, treat it as undefined.
 
-Key joins: all gold tables share `canonical_id`. The campaign funnel (`gold_media_campaign_engagement`) additionally keys on `campaign_id` and pitches a specific `content_id`.
+Key joins: all gold tables share `canonical_id`. The campaign funnel (`gold_media_campaign_engagement`) additionally keys on `campaign_id` and pitches a specific `content_id`. The NBA tables link to the action library via `recommended_action_id` → `action_id`, and to the asset library via `creative_template_id`.
 
 ## Environment
 
