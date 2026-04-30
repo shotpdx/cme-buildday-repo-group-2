@@ -13,7 +13,10 @@ try:
 except ImportError:  # pragma: no cover - exercised only when connector is unavailable
     sql = None
 
-from app.models import ActionRecommendation, HighRiskCustomer, SegmentSummary
+try:
+    from app.models import ActionRecommendation, HighRiskCustomer, SegmentSummary
+except ModuleNotFoundError:
+    from models import ActionRecommendation, HighRiskCustomer, SegmentSummary
 
 DEFAULT_CATALOG = "cme_outcomes_uswest"
 DEFAULT_SCHEMA = "media_demo"

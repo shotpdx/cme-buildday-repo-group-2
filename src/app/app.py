@@ -17,9 +17,14 @@ except ModuleNotFoundError:  # pragma: no cover - supports direct `python app.py
     import sys
     from pathlib import Path
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from app.backend import backend
-    from app.models import ActionRecommendation, HighRiskCustomer, SegmentSummary
+    _parent = str(Path(__file__).resolve().parent)
+    _grandparent = str(Path(__file__).resolve().parents[1])
+    if _parent not in sys.path:
+        sys.path.insert(0, _parent)
+    if _grandparent not in sys.path:
+        sys.path.insert(0, _grandparent)
+    from backend import backend
+    from models import ActionRecommendation, HighRiskCustomer, SegmentSummary
 
 CHURN_CATEGORY_COLOR_MAP = {
     "High": "#dc3545",

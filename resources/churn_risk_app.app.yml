@@ -1,0 +1,14 @@
+resources:
+  apps:
+    churn_risk_app:
+      name: paramount-churn-risk-${bundle.target}
+      description: "Paramount+ High Churn Risk Customer Dashboard"
+      source_code_path: ../src/app
+      permissions:
+        - user_name: cameron.shotwell@slalom.com
+          level: CAN_MANAGE
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: d24059778e957e41
+            permission: CAN_USE
