@@ -365,6 +365,90 @@ Governed catalog of approved base creative assets and DCO template components th
 
 ---
 
+## NBA Gold Layer (Next Best Action Engine)
+
+The following tables provide the data foundation for the **Next Best Action (NBA)** engine — the intelligence and orchestration layer that sits on top of the Customer 360. The NBA engine consumes existing gold tables (churn predictions, LTV, content affinity, audience segments), applies decisioning logic, and outputs a prioritized action for each customer routed to the right channel at the right time. All reuse the same `canonical_id` backbone and existing enum vocabularies.
+
+### gold_media_nba_action_library
+The catalog of everything the NBA engine can recommend. Reference/configuration table maintained by the marketing team. Each row defines an action's eligibility rules, channel constraints, cost/value parameters, and frequency limits.
+
+| # | Column | Type | Description |
+|---|--------|------|-------------|
+| 0 | `action_id` | string | **PK.** Unique action identifier, e.g. `nba_premium_upgrade_001` |
+| 1 | `action_name` | string | Human-readable label (e.g., "Premium Upgrade Offer", "Sci-Fi Discovery Push") |
+| 2 | `action_type` | string | Category: `content_recommendation`, `upsell_offer`, `retention_offer`, `re_engagement`, `win_back`, `loyalty_reward`, `service_resolution`, `do_nothing` |
+| 3 | `action_priority_tier` | int | Default priority rank (1 = highest). Baseline tiebreaker when model scores are similar |
+| 4 | `eligible_segments` | string | JSON array of segment_ids from existing `primary_segment` enum |
+| 5 | `eligible_subscription_tiers` | string | JSON array from existing enum: `["free","basic","standard","premium","family"]` |
+| 6 | `eligible_lifecycle_stages` | string | JSON array: `["new","active","at_risk","lapsed","winback"]` |
+| 7 | `channel_availability` | string | JSON array: `["email","push","in_app","home_screen","sms","display","ctv"]` |
+| 8 | `content_id` | string | Associated content (nullable). FK to `silver_media_content_catalog.content_id` |
+| 9 | `offer_value` | double | Dollar value or discount percentage (nullable) |
+| 10 | `cost_per_delivery` | double | Estimated cost to deliver per channel |
+| 11 | `expected_conversion_rate` | double | Baseline expected response rate (0.0–1.0) |
+| 12 | `expiration_date` | date | When this action is no longer valid (nullable) |
+| 13 | `creative_template_id` | string | FK to `gold_media_brand_asset_library.asset_id` (nullable) |
+| 14 | `is_active` | boolean | Action is currently available |
+| 15 | `cooldown_period_days` | int | Minimum days before re-serving to same customer |
+| 16 | `max_impressions_per_customer` | int | Lifetime or period cap per user |
+| 17 | `created_ts` | timestamp | Record creation timestamp |
+
+**Rows:** ~50 | **Grain:** One row per action | **Mirror:** `gold_media_nba_action_library_sync` on Lakebase
+
+---
+
+### gold_media_nba_recommendations
+The NBA engine's output — ranked action recommendations per customer. Stores top-N ranked actions so teams can build fallback logic. The `explanation` field provides human-readable reasoning for trust, auditability, and marketing team adoption. The `outcome` and `outcome_timestamp` columns are null until filled, closing the feedback loop for model retraining.
+
+| # | Column | Type | Description |
+|---|--------|------|-------------|
+| 0 | `canonical_id` | string | **PK (composite).** FK to `customer_360.canonical_id` |
+| 1 | `recommended_action_id` | string | **PK (composite).** FK to `nba_action_library.action_id` |
+| 2 | `action_rank` | int | Position in the ranked list (1 = best) |
+| 3 | `composite_score` | double | Overall action score combining propensity, value, cost, CX impact (0.0–1.0) |
+| 4 | `propensity_score` | double | Predicted response likelihood for this action (0.0–1.0) |
+| 5 | `expected_value` | double | Predicted revenue/LTV impact in USD |
+| 6 | `recommended_channel` | string | Best channel for delivery (from `channel_availability` enum) |
+| 7 | `recommended_timing` | string | Best delivery time: `immediate`, `next_session`, `scheduled` |
+| 8 | `recommended_content_id` | string | Content to feature in creative. FK to `silver_media_content_catalog.content_id` |
+| 9 | `explanation` | string | Human-readable reason (e.g., "High churn risk + strong sci-fi affinity + 14 days inactive") |
+| 10 | `decision_timestamp` | timestamp | **PK (composite).** When the recommendation was generated |
+| 11 | `model_version` | string | Which model version produced this score |
+| 12 | `fallback_action_id` | string | Second-best action if primary fails. FK to `nba_action_library.action_id` |
+| 13 | `outcome` | string | Null until filled: `converted`, `ignored`, `dismissed`, `complained` |
+| 14 | `outcome_timestamp` | timestamp | When the outcome was recorded (null until filled) |
+| 15 | `created_ts` | timestamp | Record creation timestamp |
+
+**Rows:** ~10,000 | **Grain:** One row per (canonical_id, recommended_action_id, decision_timestamp) | **Mirror:** `gold_media_nba_recommendations_sync` on Lakebase
+
+**Scoring semantics:** The `composite_score` combines propensity (response likelihood), expected value (revenue impact), cost (delivery cost), and CX impact (customer experience). Constraints from the action library (eligibility, suppression, frequency caps) are applied before scoring, so every row represents a valid candidate action. Priority rules: retention actions outrank upsell for customers with `churn_risk_score > 0.7`; service_resolution actions always outrank sales actions during active support cases.
+
+---
+
+### gold_media_nba_orchestration_state
+Per-customer orchestration state — journey position, delivery history, and guardrails. A living snapshot updated as actions are delivered. Prevents over-messaging, conflicting actions, and ensures journey sequencing (e.g., don't send a win-back email 2 hours after a successful re-engagement push).
+
+| # | Column | Type | Description |
+|---|--------|------|-------------|
+| 0 | `canonical_id` | string | **PK.** FK to `customer_360.canonical_id` |
+| 1 | `global_frequency_cap` | int | Max total actions across all channels per period |
+| 2 | `channel_priority_ranking` | string | JSON object with ordered channel preferences: `{"1":"in_app","2":"push","3":"email"}` |
+| 3 | `journey_stage` | string | Current stage: `awareness`, `consideration`, `conversion`, `retention` |
+| 4 | `active_journey_id` | string | Active journey identifier (nullable) |
+| 5 | `last_action_delivered` | string | Most recent action (action_id + channel) |
+| 6 | `last_action_delivered_ts` | timestamp | When the most recent action was delivered |
+| 7 | `last_action_outcome` | string | Response to most recent action (from outcome enum) |
+| 8 | `channel_fatigue_scores` | string | JSON object per-channel fatigue: `{"email":0.8,"push":0.3,"in_app":0.1}` (0.0–1.0) |
+| 9 | `holdout_group_flag` | boolean | Customer is in a measurement holdout/control group |
+| 10 | `actions_delivered_last_7d` | int | Count of actions delivered in rolling 7-day window |
+| 11 | `actions_delivered_last_30d` | int | Count of actions delivered in rolling 30-day window |
+| 12 | `updated_ts` | timestamp | Last state update timestamp |
+| 13 | `created_ts` | timestamp | Record creation timestamp |
+
+**Rows:** ~10,000 | **Grain:** One row per customer (current state) | **Mirror:** `gold_media_nba_orchestration_state_sync` on Lakebase
+
+---
+
 ## Supporting Silver Tables
 
 These are available if participants need event-level detail or the identity graph.
@@ -390,6 +474,11 @@ customer_360 (canonical_id)
   |--- content_affinity (canonical_id, content_genre)
   |--- customer_enrichment (canonical_id)          ← Buy Side
   |--- campaign_engagement (canonical_id)
+  |--- nba_recommendations (canonical_id)          ← NBA
+  |--- nba_orchestration_state (canonical_id)      ← NBA
+
+nba_action_library (action_id)                     ← NBA
+  |--- nba_recommendations (recommended_action_id) ← NBA
 
 creative_briefs (brief_id)                         ← Buy Side
   |--- creative_concepts (brief_id)                ← Buy Side
@@ -399,10 +488,11 @@ media_plan_line_items (campaign_id)
   |--- campaign_engagement (campaign_id)           ← cross-link
 
 brand_asset_library (asset_id)                     ← Buy Side
+  |--- nba_action_library (creative_template_id)   ← NBA cross-link
   [standalone reference; queried by content_genre + format at generation time]
 ```
 
-All customer-keyed gold tables join 1:1 on `canonical_id` except `content_affinity` (1:many, one row per genre) and `campaign_engagement` (1:many, one row per campaign). The Buy Side brief/concept/media-plan tables form a separate graph keyed on `brief_id`, linked to the customer graph via `campaign_id` on `media_plan_line_items`.
+All customer-keyed gold tables join 1:1 on `canonical_id` except `content_affinity` (1:many, one row per genre), `campaign_engagement` (1:many, one row per campaign), and `nba_recommendations` (1:many, one row per ranked action per decision cycle). The Buy Side brief/concept/media-plan tables form a separate graph keyed on `brief_id`, linked to the customer graph via `campaign_id` on `media_plan_line_items`. The NBA action library is a standalone reference table linked to recommendations via `action_id` and to the asset library via `creative_template_id`.
 
 ---
 
@@ -455,3 +545,16 @@ All tables are synced to Lakebase (PostgreSQL) with a `_sync` suffix. Connect vi
 | `source_type` | Studio_Master, In_House_Creative, Stock, Library_Asset, Template_Component |
 | `slot_type` | Hero, Headline, Subhead, CTA, Product_Slot, End_Card, Legal |
 | `asset_status` | Active, Expired, Archived |
+
+### NBA (Next Best Action Engine)
+
+> Fields in NBA tables marked "from existing enum" (e.g. `eligible_segments`, `eligible_subscription_tiers`, `recommended_channel`) reuse the Sell Side and Buy Side values above.
+
+| Field | Values |
+|-------|--------|
+| `action_type` | content_recommendation, upsell_offer, retention_offer, re_engagement, win_back, loyalty_reward, service_resolution, do_nothing |
+| `eligible_lifecycle_stages` | new, active, at_risk, lapsed, winback |
+| `channel_availability` | email, push, in_app, home_screen, sms, display, ctv |
+| `recommended_timing` | immediate, next_session, scheduled |
+| `outcome` | converted, ignored, dismissed, complained |
+| `journey_stage` | awareness, consideration, conversion, retention |
