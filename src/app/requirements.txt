@@ -1,0 +1,6 @@
+dash-bootstrap-components
+databricks-sql-connector
+databricks-sdk
+pydantic
+pandas
+plotly
