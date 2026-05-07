@@ -1,6 +1,7 @@
-dash-bootstrap-components
 databricks-sql-connector
 databricks-sdk
-pydantic
+fastapi
 pandas
-plotly
+pydantic
+requests
+uvicorn[standard]

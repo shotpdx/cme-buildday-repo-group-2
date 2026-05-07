@@ -6,6 +6,10 @@ dist/
 build/
 .eggs/
 *.egg
+node_modules/
+*.tsbuildinfo
+!src/app/ui/dist/
+!src/app/ui/dist/**
 
 # Virtual environments
 .venv/

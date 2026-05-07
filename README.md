@@ -1,8 +1,8 @@
 # CME Build Day
 
-Participant-facing contract for the CME Build Day creative-generation workstream. The goal on Build Day is for every team to ship a working, personalized creative experience on top of the `cme_outcomes_uswest.media_demo` Customer 360.
+Participant-facing contract and app workspace for the CME Build Day creative-generation workstream. The goal on Build Day is for every team to ship a working, personalized creative experience on top of the `cme_outcomes_uswest.media_demo` Customer 360.
 
-This repo contains the shared data contract, track briefs, and NBA gold table DDL/seed scripts (`sql/nba/`). No reference apps or pipelines live here; teams bring their own implementations (LakeFoundry or hand-built).
+This repo contains the shared data contract, track briefs, and a Databricks App implementation for the NBA workstream.
 
 ## What we're building
 
@@ -27,3 +27,29 @@ Key joins: all gold tables share `canonical_id`. The campaign funnel (`gold_medi
 - **Volumes:** `/Volumes/cme_outcomes_uswest/media_demo/creatives/` for generated imagery
 
 Anything not listed above (secret scopes, endpoint names, SP grants) is distributed per team on the morning of Build Day.
+
+## Next Best Actions App
+
+The app under `src/app` is now a FastAPI + React/Vite Databricks App. It presents a signal queue, invokes the Agent Bricks Supervisor for investigation, applies configurable guarded-autopilot policy, and records simulation-only activations for low-cost, low-risk actions.
+
+Key resources:
+
+- Supervisor endpoint: `mas-c4ed84f2-endpoint`
+- Genie specialist: `01f14964737c1b408dcdb56061a52019`
+- UC guardrail function: `cme_outcomes_uswest.media_demo.nba_policy_guardrail`
+- SQL warehouse: `8d3ba577483125f2`
+
+Local development:
+
+```bash
+USE_MOCK_BACKEND=true USE_MOCK_SUPERVISOR=true uvicorn app.app:app --app-dir src --reload --port 8000
+cd src/app/ui && bun install && bun run dev
+```
+
+Production build:
+
+```bash
+cd src/app/ui && bun run build
+pytest src/app/tests
+databricks --profile cme-outcomes bundle validate
+```
