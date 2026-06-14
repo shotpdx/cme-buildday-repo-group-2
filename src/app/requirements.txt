@@ -1,0 +1,7 @@
+databricks-sql-connector
+databricks-sdk
+fastapi
+pandas
+pydantic
+requests
+uvicorn[standard]

@@ -1,0 +1,10 @@
+bundle:
+  name: paramount-churn-risk-app
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    mode: development

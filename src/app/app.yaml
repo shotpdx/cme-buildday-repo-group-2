@@ -1,0 +1,17 @@
+command:
+  - "python"
+  - "app.py"
+
+env:
+  - name: USE_MOCK_BACKEND
+    value: "true"
+  - name: USE_MOCK_SUPERVISOR
+    value: "true"
+  - name: NBA_SUPERVISOR_ENDPOINT
+    value: "mas-c4ed84f2-endpoint"
+  - name: DATABRICKS_WAREHOUSE_ID
+    value: "8d3ba577483125f2"
+  - name: DATABRICKS_CATALOG
+    value: "cme_outcomes_uswest"
+  - name: DATABRICKS_SCHEMA
+    value: "media_demo"

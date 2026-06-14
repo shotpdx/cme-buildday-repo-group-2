@@ -1,0 +1,184 @@
+meta:
+  contract_version: '1.0'
+  title: Paramount+ High Churn Risk Customer Application
+  requester:
+    name: User
+    role: Requester
+    org: Paramount Plus Lifecycle Marketing Team
+  stakeholders: []
+  source_context:
+    conversation_id: unknown
+    links: []
+  created_at: '2024-07-30T12:00:00Z'
+  updated_at: '2024-07-30T12:00:00Z'
+outcome:
+  problem_statement: The Paramount+ Lifecycle Marketing team needs to identify and
+    act on high-churn-risk customers to improve retention. Currently, there isn't
+    an efficient way to surface these customers, understand their behaviors, and receive
+    actionable recommendations.
+  goals:
+  - Identify customers at high churn risk based on specific criteria.
+  - Summarize the common behaviors and characteristics of these high-risk customer
+    segments.
+  - Dynamically suggest appropriate marketing actions for these segments.
+  - Provide a user-friendly web application for the lifecycle marketing team to interact
+    with this information.
+  non_goals:
+  - Building a new churn prediction model (will use existing `gold_media_churn_predictions`).
+  - Building a comprehensive marketing automation platform (will focus on the identification
+    and recommendation component).
+  success_metrics:
+  - metric: Number of high-risk customers identified
+    target: N/A
+  - metric: Engagement rate with recommended actions
+    target: N/A
+  - metric: Reduction in churn rate for targeted segments
+    target: N/A
+  - metric: User adoption of the application by the marketing team
+    target: N/A
+  users_personas:
+  - Lifecycle Marketing Manager (Paramount+)
+  - Marketing Analyst (Paramount+)
+  constraints:
+  - Must leverage existing `cme_outcomes_uswest.media_demo` gold tables.
+  - Application must be a web application for flexibility.
+artifact_plan:
+  artifact_types:
+  - api
+  - dashboard
+  environments:
+  - dev
+  - staging
+  - prod
+  delivery:
+    milestones: []
+    definition_of_done:
+    - High-churn-risk customer identification logic implemented and tested.
+    - Behavior summary generation implemented and tested.
+    - Dynamic action recommendation rules implemented and tested.
+    - Web application UI/UX designed and implemented.
+    - Application deployed to production environment.
+    - Documentation for usage and maintenance complete.
+open_questions:
+- question: How to define 'shows a mix of `churn_risk_category` (e.g., Medium to High)'
+    for Rule 3?
+  owner: Requester
+  status: pending
+- question: What would be the threshold for 'low' `total_watch_seconds` for Rule 3?
+  owner: Requester
+  status: pending
+- question: What are the specific details and schema of the 'Action Library' and 'Recommendations'
+    tables mentioned in the README.md?
+  owner: Requester
+  status: pending
+- question: What is the desired frequency for updating the high-churn-risk customer
+    list and recommendations in the application?
+  owner: Requester
+  status: pending
+- question: What are the specific UI/UX requirements for the web application (e.g.,
+    filtering, sorting, export options, visualization types)?
+  owner: Requester
+  status: pending
+- question: What authentication and authorization mechanisms are required for the
+    web application?
+  owner: Requester
+  status: pending
+decisions:
+- decision: Target artifact is a web application.
+  rationale: Provides more flexibility and interactivity for the marketing team compared
+    to a dashboard or report.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: High-churn-risk customer definition is based on two main conditions (A
+    OR B).
+  rationale: Captures both long-time users showing risk and specific critical risk
+    factor combinations.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: Summary behaviors will include Demographics/Persona Distribution, Average
+    Engagement Metrics, Subscription Status, and Top Content Affinity.
+  rationale: Provides a comprehensive view for the marketing team to understand the
+    segment.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: Action recommendations will be rule-based.
+  rationale: Allows for tailored actions based on specific characteristics of the
+    high-risk segment.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: Rule 1 (Content Action) condition for `unique_content_viewed` = 1 is 'over
+    75% of the segment'.
+  rationale: Ensures a strong majority exhibits this behavior for the rule to apply.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: Rule 1 (Content Action) condition for 'dominant `top_genre_1`' is 'the
+    most frequent `top_genre_1` within the segment'.
+  rationale: Identifies the primary content interest for the segment.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: Rule 2 (Win-back Action) condition for 'predominantly `churn_risk_category`
+    of 'High'' is 'over 75% of the segment'.
+  rationale: Ensures the rule applies when a strong majority is in the highest churn
+    risk category.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+- decision: Rule 2 (Win-back Action) condition for 'significantly high `days_since_last_engagement`'
+    is '> 45 days'.
+  rationale: Indicates a prolonged period of inactivity, warranting a win-back strategy.
+  made_by: User
+  made_at: '2024-07-30T12:00:00Z'
+assumptions:
+- assumption: The `gold_media_customer_360` and `gold_media_churn_predictions` tables
+    are up-to-date and accurate.
+  risk_if_wrong: The identified high-risk customers and their summarized behaviors
+    will be incorrect, leading to ineffective marketing actions.
+- assumption: The `canonical_id` effectively represents a household for the purpose
+    of identifying 'one show' viewing and other household-level attributes.
+  risk_if_wrong: If `canonical_id` is truly per-individual and not per-household,
+    the 'one show' logic might be flawed for household-level analysis.
+- assumption: The 'Action Library' and 'Recommendations' tables (if they exist and
+    are used for dynamic suggestions) have a consistent and well-defined schema.
+  risk_if_wrong: Inability to integrate or correctly interpret existing recommendations,
+    requiring manual definition of all actions.
+data:
+  sources:
+  - name: gold_media_customer_360
+    type: Delta Table
+    location: cme_outcomes_uswest.media_demo
+    access_pattern: Read
+  - name: gold_media_churn_predictions
+    type: Delta Table
+    location: cme_outcomes_uswest.media_demo
+    access_pattern: Read
+  - name: gold_media_content_affinity
+    type: Delta Table
+    location: cme_outcomes_uswest.media_demo
+    access_pattern: Read
+  - name: gold_media_top_genres_per_user
+    type: Delta Table
+    location: cme_outcomes_uswest.media_demo
+    access_pattern: Read
+  sinks: []
+  transformations:
+  - Join `gold_media_customer_360` and `gold_media_churn_predictions` on `canonical_id`.
+  - Filter customers based on defined 'high churn risk' conditions.
+  - Aggregate metrics (e.g., average `total_watch_seconds`, distribution of `persona`)
+    for the identified high-risk segment.
+  - Determine dominant `top_genre_1` for the segment.
+  - Apply rule-based logic to suggest a recommended action.
+  quality_requirements:
+  - 'Data freshness: Gold tables should be updated daily.'
+  - 'Completeness: All required columns in source tables must be populated.'
+  - 'Accuracy: Churn scores and engagement metrics must reflect true customer behavior.'
+app:
+  ui_requirements:
+  - Display a list of high-churn-risk customers (canonical_id, email, churn_risk_score,
+    etc.).
+  - Show a summary of behaviors for the high-risk segment (churn risk category breakdown,
+    persona distribution, avg engagement metrics, subscription status, top content
+    affinity).
+  - Display the dynamically suggested marketing action for the segment.
+  - Ability to drill down into individual customer details (if needed).
+  - Export functionality for the customer list and summary data.
+  api_endpoints: []
+  deployment_type: Web Application

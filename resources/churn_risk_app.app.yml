@@ -1,0 +1,14 @@
+resources:
+  apps:
+    churn_risk_app:
+      name: paramount-churn-risk-${bundle.target}
+      description: "CME Next Best Actions guarded-autopilot app"
+      source_code_path: ../src/app
+      permissions:
+        - user_name: cameron.shotwell@slalom.com
+          level: CAN_MANAGE
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: 8d3ba577483125f2
+            permission: CAN_USE
